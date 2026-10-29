@@ -2,7 +2,7 @@
 /*
 Plugin Name: GS News Scroller
 Description: Manage multiple news items and display them as animated scrolling marquees on your site.
-Version: 1.0
+Version: 1.1
 Author: Zeth
 */
 
@@ -11,7 +11,7 @@ $thisfile = basename(__FILE__, ".php");
 register_plugin(
     $thisfile,
     'News Scroller',
-    '1.0',
+    '1.1',
     'Zeth',
     'https://getsimple-ce.ovh/',
     'Manage and display multiple news ticker marquees.',
@@ -121,197 +121,319 @@ function gs_news_scroller_admin() {
         $selected_scroller = $scrollers[0];
     }
     ?>
-    <h3><strong>News Scroller Management</strong></h3>
-    <p>Manage multiple news scrollers independently with custom directions, speeds, and styling options.</p>
+    <style>
+        /* Mobile Scaling & Layout Fixes */
+        .gs-news-admin-wrap {
+            font-size: 14px;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        .gs-responsive-toolbar {
+            background: #f9f9f9; 
+            padding: 12px; 
+            border: 1px solid #ddd; 
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
+        .gs-responsive-toolbar form {
+            margin: 0 !important;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .gs-settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            margin-top: 10px;
+        }
+        .gs-news-admin-wrap input[type="text"],
+        .gs-news-admin-wrap input[type="number"],
+        .gs-news-admin-wrap select {
+            font-size: 14px !important;
+            padding: 6px 8px !important;
+            box-sizing: border-box;
+            max-width: 100%;
+        }
 
-    <div style="background: #f9f9f9; padding: 15px; border: 1px solid #ddd; margin-bottom: 20px;">
-        <!-- Select Scroller Form -->
-        <form action="load.php" method="get" style="display:inline-block; margin-right: 20px;">
-            <input type="hidden" name="id" value="gs_news_scroller">
-            <label><strong>Select Scroller:</strong></label>
-            <select name="scroller_id" onchange="this.form.submit()" style="padding: 4px;">
-                <?php if (empty($scrollers)): ?>
-                    <option value="">-- No Scrollers Found --</option>
-                <?php else: ?>
-                    <?php foreach ($scrollers as $scr): ?>
-                        <option value="<?php echo $scr; ?>" <?php if ($selected_scroller === $scr) echo 'selected'; ?>><?php echo $scr; ?></option>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </select>
-        </form>
+        /* Fully Responsive News Table Styling */
+        #news_items_table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        #news_items_table th {
+            background: #f1f1f1;
+            padding: 8px;
+            text-align: left;
+        }
+        #news_items_table td {
+            padding: 8px;
+            vertical-align: middle;
+        }
 
-        <!-- Create / Switch Scroller Form -->
-        <form action="load.php?id=gs_news_scroller<?php echo !empty($selected_scroller) ? '&scroller_id=' . htmlspecialchars($selected_scroller) : ''; ?>" method="post" style="display:inline-block; margin-right: 5px;">
-            <label><strong>New Scroller ID:</strong></label>
-            <input type="text" name="new_scroller_id" placeholder="e.g. sidebar-news" class="text" style="width: 130px; display:inline-block;">
-            <input type="submit" name="create_scroller" class="submit" value="Create / Switch">
-        </form>
+        @media screen and (max-width: 768px) {
+            .gs-responsive-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .gs-responsive-toolbar form {
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .gs-responsive-toolbar input[type="text"],
+            .gs-responsive-toolbar select,
+            .gs-responsive-toolbar input[type="submit"] {
+                width: 100% !important;
+            }
+            .gs-settings-grid {
+                grid-template-columns: 1fr;
+            }
 
-        <!-- Delete Scroller Form -->
-        <?php if (!empty($selected_scroller)): ?>
-            <form action="load.php?id=gs_news_scroller&scroller_id=<?php echo htmlspecialchars($selected_scroller); ?>" method="post" style="display:inline-block;" onsubmit="return confirm('Are you sure you want to delete this scroller?');">
-                <input type="submit" name="delete_scroller" class="submit" value="Delete" />
+            /* Transform table into card stack on mobile screens */
+            #news_items_table thead {
+                display: none;
+            }
+            #news_items_table, #news_items_table tbody, #news_items_table tr, #news_items_table td {
+                display: block;
+                width: 100% !important;
+                box-sizing: border-box;
+            }
+            #news_items_table tr.news-row {
+                background: #fff;
+                border: 1px solid #ddd;
+                margin-bottom: 15px;
+                padding: 10px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                position: relative;
+            }
+            #news_items_table td {
+                border: none !important;
+                padding: 6px 0 !important;
+            }
+            /* Add pseudo-label headers for clarity on mobile */
+            #news_items_table td:nth-child(1):before { content: "News Title:"; font-weight: bold; display: block; margin-bottom: 3px; color: #333; }
+            #news_items_table td:nth-child(2):before { content: "News Text:"; font-weight: bold; display: block; margin-bottom: 3px; color: #333; }
+            #news_items_table td:nth-child(3):before { content: "Target Link:"; font-weight: bold; display: block; margin-bottom: 3px; color: #333; }
+            #news_items_table td:nth-child(4):before { content: "Image URL:"; font-weight: bold; display: block; margin-bottom: 3px; color: #333; }
+            #news_items_table td:nth-child(5) {
+                text-align: right !important;
+                padding-top: 10px !important;
+            }
+            #news_items_table td:nth-child(5) a.remove-row {
+                display: inline-block;
+                background: #a94442;
+                color: #fff !important;
+                padding: 4px 12px;
+                border-radius: 3px;
+                text-decoration: none;
+                font-size: 14px !important;
+            }
+            #news_items_table td:nth-child(5) a.remove-row::after {
+                content: " Delete Row";
+            }
+        }
+    </style>
+
+    <div class="gs-news-admin-wrap">
+        <h3><strong>News Scroller Management</strong></h3>
+        <p>Manage multiple news scrollers independently with custom directions, speeds, and styling options.</p>
+
+        <div class="gs-responsive-toolbar">
+            <!-- Select Scroller Form -->
+            <form action="load.php" method="get">
+                <input type="hidden" name="id" value="gs_news_scroller">
+                <label><strong>Select Scroller:</strong></label>
+                <select name="scroller_id" onchange="this.form.submit()">
+                    <?php if (empty($scrollers)): ?>
+                        <option value="">-- No Scrollers Found --</option>
+                    <?php else: ?>
+                        <?php foreach ($scrollers as $scr): ?>
+                            <option value="<?php echo $scr; ?>" <?php if ($selected_scroller === $scr) echo 'selected'; ?>><?php echo $scr; ?></option>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </select>
             </form>
-        <?php endif; ?>
-    </div>
 
-    <?php if (!empty($selected_scroller) && in_array($selected_scroller, $scrollers)): ?>
-        <?php 
-        $data_file = GS_NEWS_SCROLLER_DATA_PATH . $selected_scroller . '.xml';
-        $items = array();
-        $saved_direction = 'left';
-        $saved_speed = 25;
-        $saved_bg_color = '#222222';
-        $saved_title_color = '#ffca28';
-        $saved_text_color = '#ffffff';
-        $saved_image_size = 35;
-        $saved_title_size = 14;
-        $saved_text_size = 14;
+            <!-- Create / Switch Scroller Form -->
+            <form action="load.php?id=gs_news_scroller<?php echo !empty($selected_scroller) ? '&scroller_id=' . htmlspecialchars($selected_scroller) : ''; ?>" method="post">
+                <label><strong>New ID:</strong></label>
+                <input type="text" name="new_scroller_id" placeholder="e.g. sidebar-news" class="text">
+                <input type="submit" name="create_scroller" class="submit" value="Create / Switch">
+            </form>
 
-        if (file_exists($data_file)) {
-            $xml = @simplexml_load_file($data_file);
-            if ($xml) {
-                if (isset($xml->direction)) { $saved_direction = (string)$xml->direction; }
-                if (isset($xml->speed)) { $saved_speed = (int)$xml->speed; }
-                if (isset($xml->bg_color)) { $saved_bg_color = (string)$xml->bg_color; }
-                if (isset($xml->title_color)) { $saved_title_color = (string)$xml->title_color; }
-                if (isset($xml->text_color)) { $saved_text_color = (string)$xml->text_color; }
-                if (isset($xml->image_size)) { $saved_image_size = (int)$xml->image_size; }
-                if (isset($xml->title_size)) { $saved_title_size = (int)$xml->title_size; }
-                if (isset($xml->text_size)) { $saved_text_size = (int)$xml->text_size; }
-                
-                $news_node_source = isset($xml->news_items) ? $xml->news_items->item : $xml->item;
-                if ($news_node_source) {
-                    foreach ($news_node_source as $node) {
-                        $items[] = array(
-                            'title' => (string)$node->title,
-                            'text'  => (string)$node->text,
-                            'link'  => (string)$node->link,
-                            'image' => (string)$node->image
-                        );
+            <!-- Delete Scroller Form -->
+            <?php if (!empty($selected_scroller)): ?>
+                <form action="load.php?id=gs_news_scroller&scroller_id=<?php echo htmlspecialchars($selected_scroller); ?>" method="post" onsubmit="return confirm('Are you sure you want to delete this scroller?');">
+                    <input type="submit" name="delete_scroller" class="submit" value="Delete Scroller" style="background: #a94442; color: #fff;" />
+                </form>
+            <?php endif; ?>
+        </div>
+
+        <?php if (!empty($selected_scroller) && in_array($selected_scroller, $scrollers)): ?>
+            <?php 
+            $data_file = GS_NEWS_SCROLLER_DATA_PATH . $selected_scroller . '.xml';
+            $items = array();
+            $saved_direction = 'left';
+            $saved_speed = 25;
+            $saved_bg_color = '#222222';
+            $saved_title_color = '#ffca28';
+            $saved_text_color = '#ffffff';
+            $saved_image_size = 35;
+            $saved_title_size = 14;
+            $saved_text_size = 14;
+
+            if (file_exists($data_file)) {
+                $xml = @simplexml_load_file($data_file);
+                if ($xml) {
+                    if (isset($xml->direction)) { $saved_direction = (string)$xml->direction; }
+                    if (isset($xml->speed)) { $saved_speed = (int)$xml->speed; }
+                    if (isset($xml->bg_color)) { $saved_bg_color = (string)$xml->bg_color; }
+                    if (isset($xml->title_color)) { $saved_title_color = (string)$xml->title_color; }
+                    if (isset($xml->text_color)) { $saved_text_color = (string)$xml->text_color; }
+                    if (isset($xml->image_size)) { $saved_image_size = (int)$xml->image_size; }
+                    if (isset($xml->title_size)) { $saved_title_size = (int)$xml->title_size; }
+                    if (isset($xml->text_size)) { $saved_text_size = (int)$xml->text_size; }
+                    
+                    $news_node_source = isset($xml->news_items) ? $xml->news_items->item : $xml->item;
+                    if ($news_node_source) {
+                        foreach ($news_node_source as $node) {
+                            $items[] = array(
+                                'title' => (string)$node->title,
+                                'text'  => (string)$node->text,
+                                'link'  => (string)$node->link,
+                                'image' => (string)$node->image
+                            );
+                        }
                     }
                 }
             }
-        }
-        ?>
-        <p style="background: #eef; padding: 10px; border-left: 4px solid #33f;">
-            <strong>Template Tag:</strong> 
-            <code>&lt;?php echo get_gs_news_scroller('<?php echo $selected_scroller; ?>'); ?&gt;</code><br>
-            <strong>Page Shortcode:</strong> 
-            <code>(% gs_news_scroller('<?php echo $selected_scroller; ?>') %)</code>
-        </p>
+            ?>
+            <p style="background: #eef; padding: 10px; border-left: 4px solid #33f; word-break: break-all; font-size: 13px;">
+                <strong>Template Tag:</strong> 
+                <code>&lt;?php echo get_gs_news_scroller('<?php echo $selected_scroller; ?>'); ?&gt;</code><br>
+                <strong>Page Shortcode:</strong> 
+                <code>(% gs_news_scroller('<?php echo $selected_scroller; ?>') %)</code>
+            </p>
 
-        <form action="load.php?id=gs_news_scroller&scroller_id=<?php echo htmlspecialchars($selected_scroller); ?>" method="post">
-            
-            <div style="background: #fff; padding: 15px; border: 1px solid #ddd; margin-bottom: 20px;">
-                <h4><strong>Settings & Styling for: <?php echo htmlspecialchars($selected_scroller); ?></strong></h4>
+            <form action="load.php?id=gs_news_scroller&scroller_id=<?php echo htmlspecialchars($selected_scroller); ?>" method="post">
                 
-                <div style="display: flex; flex-wrap: wrap; gap: 20px; margin-top: 10px;">
-                    <div>
-                        <label style="display: block; margin-bottom: 5px;"><strong>Scroll Direction:</strong></label>
-                        <select name="scroller_direction" style="padding: 4px;">
-                            <option value="left" <?php if ($saved_direction === 'left') echo 'selected'; ?>>Left</option>
-                            <option value="right" <?php if ($saved_direction === 'right') echo 'selected'; ?>>Right</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="display: block; margin-bottom: 5px;"><strong>Scroll Speed (seconds):</strong></label>
-                        <input type="number" name="scroller_speed" class="text" value="<?php echo $saved_speed; ?>" min="1" style="width: 80px;" /> 
-                        <small>(lower = faster)</small>
-                    </div>
-                    <div>
-                        <label style="display: block; margin-bottom: 5px;"><strong>Background Color:</strong></label>
-                        <input type="text" name="bg_color" class="text" value="<?php echo htmlspecialchars($saved_bg_color); ?>" style="width: 100px;" placeholder="#222222" />
-                    </div>
-                    <div>
-                        <label style="display: block; margin-bottom: 5px;"><strong>Title Color:</strong></label>
-                        <input type="text" name="title_color" class="text" value="<?php echo htmlspecialchars($saved_title_color); ?>" style="width: 100px;" placeholder="#ffca28" />
-                    </div>
-                    <div>
-                        <label style="display: block; margin-bottom: 5px;"><strong>Text Color:</strong></label>
-                        <input type="text" name="text_color" class="text" value="<?php echo htmlspecialchars($saved_text_color); ?>" style="width: 100px;" placeholder="#ffffff" />
-                    </div>
-                    <div>
-                        <label style="display: block; margin-bottom: 5px;"><strong>Image Height (px):</strong></label>
-                        <input type="number" name="image_size" class="text" value="<?php echo $saved_image_size; ?>" min="1" style="width: 80px;" />
-                    </div>
-                    <div>
-                        <label style="display: block; margin-bottom: 5px;"><strong>Title Size (px):</strong></label>
-                        <input type="number" name="title_size" class="text" value="<?php echo $saved_title_size; ?>" min="1" style="width: 80px;" />
-                    </div>
-                    <div>
-                        <label style="display: block; margin-bottom: 5px;"><strong>Text Size (px):</strong></label>
-                        <input type="number" name="text_size" class="text" value="<?php echo $saved_text_size; ?>" min="1" style="width: 80px;" />
+                <div style="background: #fff; padding: 15px; border: 1px solid #ddd; margin-bottom: 20px;">
+                    <h4><strong>Settings & Styling for: <?php echo htmlspecialchars($selected_scroller); ?></strong></h4>
+                    
+                    <div class="gs-settings-grid">
+                        <div>
+                            <label style="display: block; margin-bottom: 4px;"><strong>Scroll Direction:</strong></label>
+                            <select name="scroller_direction" style="width: 100%;">
+                                <option value="left" <?php if ($saved_direction === 'left') echo 'selected'; ?>>Left</option>
+                                <option value="right" <?php if ($saved_direction === 'right') echo 'selected'; ?>>Right</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px;"><strong>Speed (sec):</strong></label>
+                            <input type="number" name="scroller_speed" class="text" value="<?php echo $saved_speed; ?>" min="1" style="width: 100%;" /> 
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px;"><strong>Background:</strong></label>
+                            <input type="text" name="bg_color" class="text" value="<?php echo htmlspecialchars($saved_bg_color); ?>" style="width: 100%;" placeholder="#222222" />
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px;"><strong>Title Color:</strong></label>
+                            <input type="text" name="title_color" class="text" value="<?php echo htmlspecialchars($saved_title_color); ?>" style="width: 100%;" placeholder="#ffca28" />
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px;"><strong>Text Color:</strong></label>
+                            <input type="text" name="text_color" class="text" value="<?php echo htmlspecialchars($saved_text_color); ?>" style="width: 100%;" placeholder="#ffffff" />
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px;"><strong>Image Height:</strong></label>
+                            <input type="number" name="image_size" class="text" value="<?php echo $saved_image_size; ?>" min="1" style="width: 100%;" />
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px;"><strong>Title Size:</strong></label>
+                            <input type="number" name="title_size" class="text" value="<?php echo $saved_title_size; ?>" min="1" style="width: 100%;" />
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px;"><strong>Text Size:</strong></label>
+                            <input type="number" name="text_size" class="text" value="<?php echo $saved_text_size; ?>" min="1" style="width: 100%;" />
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <table id="news_items_table" class="edittable highlight">
-                <thead>
-                    <tr>
-                        <th style="width: 20%;">News Title</th>
-                        <th style="width: 30%;">News Text</th>
-                        <th style="width: 20%;">Target Link (Optional)</th>
-                        <th style="width: 20%;">Image URL (Optional)</th>
-                        <th style="width: 1%; text-align: right; padding-left: 5px;">Action</th>
-                    </tr>
-                </thead>
-                <tbody id="news_container">
-                    <?php if (empty($items)): ?>
-                        <tr class="news-row">
-                            <td><input type="text" name="news[0][title]" class="text" placeholder="Title" style="width:100%;"></td>
-                            <td><input type="text" name="news[0][text]" class="text" placeholder="News content..." style="width:100%;"></td>
-                            <td><input type="text" name="news[0][link]" class="text" placeholder="https://..." style="width:100%;"></td>
-                            <td><input type="text" name="news[0][image]" class="text" placeholder="URL or path" style="width:100%;"></td>
-                            <td style="text-align: left; padding-left: 5px;"><a href="#" class="cancel remove-row" title="Delete" style="color: #b7b7b7 !important; text-decoration: none; font-size:18px;">&times;</a></td>
-                        </tr>
-                    <?php else: ?>
-                        <?php foreach ($items as $i => $item): ?>
-                            <tr class="news-row">
-                                <td><input type="text" name="news[<?php echo $i; ?>][title]" class="text" value="<?php echo htmlspecialchars($item['title']); ?>" style="width:100%;"></td>
-                                <td><input type="text" name="news[<?php echo $i; ?>][text]" class="text" value="<?php echo htmlspecialchars($item['text']); ?>" style="width:100%;"></td>
-                                <td><input type="text" name="news[<?php echo $i; ?>][link]" class="text" value="<?php echo htmlspecialchars($item['link']); ?>" style="width:100%;"></td>
-                                <td><input type="text" name="news[<?php echo $i; ?>][image]" class="text" value="<?php echo htmlspecialchars($item['image']); ?>" style="width:100%;"></td>
-                                <td style="text-align: right; padding-left: 5px;"><a href="#" class="cancel remove-row" title="Delete" style="color: #b7b7b7 !important; text-decoration: none; font-size:18px;">&times;</a></td>
+                <div class="gs-table-responsive">
+                    <table id="news_items_table" class="edittable highlight">
+                        <thead>
+                            <tr>
+                                <th style="width: 22%;">News Title</th>
+                                <th style="width: 32%;">News Text</th>
+                                <th style="width: 20%;">Target Link</th>
+                                <th style="width: 20%;">Image URL</th>
+                                <th style="width: 6%; text-align: center;">Action</th>
                             </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+                        </thead>
+                        <tbody id="news_container">
+                            <?php if (empty($items)): ?>
+                                <tr class="news-row">
+                                    <td><input type="text" name="news[0][title]" class="text" placeholder="Title" style="width:100%;"></td>
+                                    <td><input type="text" name="news[0][text]" class="text" placeholder="News content..." style="width:100%;"></td>
+                                    <td><input type="text" name="news[0][link]" class="text" placeholder="https://..." style="width:100%;"></td>
+                                    <td><input type="text" name="news[0][image]" class="text" placeholder="URL or path" style="width:100%;"></td>
+                                    <td style="text-align: center;"><a href="#" class="cancel remove-row" title="Delete" style="color: #b7b7b7 !important; text-decoration: none; font-size:18px;">&times;</a></td>
+                                </tr>
+                            <?php else: ?>
+                                <?php foreach ($items as $i => $item): ?>
+                                    <tr class="news-row">
+                                        <td><input type="text" name="news[<?php echo $i; ?>][title]" class="text" value="<?php echo htmlspecialchars($item['title']); ?>" style="width:100%;"></td>
+                                        <td><input type="text" name="news[<?php echo $i; ?>][text]" class="text" value="<?php echo htmlspecialchars($item['text']); ?>" style="width:100%;"></td>
+                                        <td><input type="text" name="news[<?php echo $i; ?>][link]" class="text" value="<?php echo htmlspecialchars($item['link']); ?>" style="width:100%;"></td>
+                                        <td><input type="text" name="news[<?php echo $i; ?>][image]" class="text" value="<?php echo htmlspecialchars($item['image']); ?>" style="width:100%;"></td>
+                                        <td style="text-align: center;"><a href="#" class="cancel remove-row" title="Delete" style="color: #b7b7b7 !important; text-decoration: none; font-size:18px;">&times;</a></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
 
-            <p style="margin-top: 15px;">
-                <a href="#" id="add_more_news" class="button">+ Add News Item</a>
-            </p>
+                <p style="margin-top: 15px;">
+                    <a href="#" id="add_more_news" class="button">+ Add News Item</a>
+                </p>
 
-            <p class="submit" style="margin-top: 20px;">
-                <input type="submit" name="save_news" class="submit" value="Save Scroller" />
-            </p>
-        </form>
+                <p class="submit" style="margin-top: 20px;">
+                    <input type="submit" name="save_news" class="submit" value="Save Scroller" />
+                </p>
+            </form>
 
-        <script>
-        jQuery(document).ready(function($) {
-            let rowIdx = $('#news_container tr').length;
+            <script>
+            jQuery(document).ready(function($) {
+                let rowIdx = $('#news_container tr').length;
 
-            $('#add_more_news').on('click', function(e) {
-                e.preventDefault();
-                let newRow = '<tr class="news-row">' +
-                    '<td><input type="text" name="news[' + rowIdx + '][title]" class="text" placeholder="Title" style="width:100%;"></td>' +
-                    '<td><input type="text" name="news[' + rowIdx + '][text]" class="text" placeholder="News content..." style="width:100%;"></td>' +
-                    '<td><input type="text" name="news[' + rowIdx + '][link]" class="text" placeholder="https://..." style="width:100%;"></td>' +
-                    '<td><input type="text" name="news[' + rowIdx + '][image]" class="text" placeholder="URL or path" style="width:100%;"></td>' +
-                    '<td style="text-align: right; padding-left: 5px;"><a href="#" class="cancel remove-row" title="Delete" style="color: #b7b7b7 !important; text-decoration: none; font-size:18px;">&times;</a></td>' +
-                    '</tr>';
-                $('#news_container').append(newRow);
-                rowIdx++;
+                $('#add_more_news').on('click', function(e) {
+                    e.preventDefault();
+                    let newRow = '<tr class="news-row">' +
+                        '<td><input type="text" name="news[' + rowIdx + '][title]" class="text" placeholder="Title" style="width:100%;"></td>' +
+                        '<td><input type="text" name="news[' + rowIdx + '][text]" class="text" placeholder="News content..." style="width:100%;"></td>' +
+                        '<td><input type="text" name="news[' + rowIdx + '][link]" class="text" placeholder="https://..." style="width:100%;"></td>' +
+                        '<td><input type="text" name="news[' + rowIdx + '][image]" class="text" placeholder="URL or path" style="width:100%;"></td>' +
+                        '<td style="text-align: center;"><a href="#" class="cancel remove-row" title="Delete" style="color: #b7b7b7 !important; text-decoration: none; font-size:18px;">&times;</a></td>' +
+                        '</tr>';
+                    $('#news_container').append(newRow);
+                    rowIdx++;
+                });
+
+                $(document).on('click', '.remove-row', function(e) {
+                    e.preventDefault();
+                    $(this).closest('tr').remove();
+                });
             });
-
-            $(document).on('click', '.remove-row', function(e) {
-                e.preventDefault();
-                $(this).closest('tr').remove();
-            });
-        });
-        </script>
-    <?php endif; ?>
+            </script>
+        <?php endif; ?>
+    </div>
     <?php
 }
 
